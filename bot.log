@@ -1,0 +1,6 @@
+bot log
+29.10.2019 17:27:40 main (<class 'requests.exceptions.ReadTimeout'>, ReadTimeout(ReadTimeoutError("HTTPSConnectionPool(host='api.telegram.org', port=443): Read timed out. (read timeout=3.5)")), <traceback object at 0x7f254e698640>)
+29.10.2019 17:30:53 send_message_to (<class 'TypeError'>, TypeError("argument should be integer or None, not 'str'"), <traceback object at 0x7fe6309ceb90>)
+29.10.2019 17:31:26 send_message_to (<class 'TypeError'>, TypeError("argument should be integer or None, not 'str'"), <traceback object at 0x7fc72169d230>)
+29.10.2019 17:31:59 send_message_to (<class 'AttributeError'>, AttributeError("'list' object has no attribute 'strip'"), <traceback object at 0x7fba5c90f190>)
+29.10.2019 18:12:00 botStatus (<class 'IndexError'>, IndexError('list index out of range'), <traceback object at 0x7f978fe90c30>)
