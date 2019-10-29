@@ -1,0 +1,2 @@
+# myBot
+KANmeteo_bot
