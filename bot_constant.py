@@ -8,3 +8,4 @@ help = {
 
 }
 
+bot_path = ''

@@ -1,5 +1,3 @@
-from stat import ST_MTIME
-
 import bot_token
 import telebot
 import time
@@ -8,6 +6,7 @@ import random
 import threading
 import sys
 import os
+from stat import ST_MTIME
 from telebot import util
 from datetime import datetime
 import bot_constant as const
@@ -19,9 +18,9 @@ user_error = []
 not_understand = ['Что-то я тебя не пойму никак...', 'Ты серьезно???', 'Ты хорошо подумал???', 'Не шути так, братанчик']
 
 try:
-    with open('bot_users.txt', 'r')as f:
+    with open(const.bot_path + 'bot_users.txt', 'r')as f:
         known_users = [int(user) for user in f.read().split('\n')]
-    with open('bot_error.txt', 'r')as f:
+    with open(const.bot_path + 'bot_error.txt', 'r')as f:
         text_file = f.read()
         if len(text_file) > 1:
             user_error = [int(user) for user in text_file.split('\n')]
@@ -42,7 +41,7 @@ def listener(messages):
             if m.chat.id != bot_token.myChatId:
                 bot.send_message(bot_token.myChatId, text_mes)
                 try:
-                    with open('bot_listener.log', 'a')as f:
+                    with open(const.bot_path + 'bot_listener.log', 'a')as f:
                         f.write(text_mes + '\n')
                 except UnicodeEncodeError:
                     pass
@@ -61,13 +60,13 @@ def command_start(m):
     if cid not in known_users:  # if user hasn't used the "/start" command yet:
         known_users.append(cid)  # save user id, so you could brodcast messages to all users of this bot later
         str_known_users = ([str(user) for user in known_users])
-        with  open('bot_users.txt', 'w')as f:
+        with  open(const.bot_path + 'bot_users.txt', 'w')as f:
             f.write('\n'.join(str_known_users))
         bot.send_message(cid, "Приветствую тебя, прямоходящий....")
         time.sleep(2)
         bot.send_message(cid, f"Я метео бот, а ты походу {m.chat.first_name}")
         time.sleep(2)
-        bot.send_message(cid, "Я тебя запомнил...")
+        bot.send_message(cid, "Я тебя запомнил...", reply_markup=keyboard)
         time.sleep(3)
         command_help(m)  # show the new user the help page
     else:
@@ -93,7 +92,7 @@ def send_message_to(m):
         for text in message:
             answer += text + ' '
         if user.upper() == 'ALL':
-            with open('bot_users.txt', 'r')as f:
+            with open(const.bot_path + 'bot_users.txt', 'r')as f:
                 for user in f.read().split('\n'):
                     bot.send_message(int(user), answer)
         else:
@@ -163,7 +162,7 @@ def botErrors(m):
             if cid not in user_error:
                 user_error.append(cid)
                 str_user_error = [str(user) for user in user_error]
-                with open('bot_error.txt', 'w')as f:
+                with open(const.bot_path + 'bot_error.txt', 'w')as f:
                     f.write('\n'.join(str_user_error))
                 bot.send_message(cid, 'Подключаю уведомление об ошибках')
             elif cid in user_error:
@@ -172,7 +171,7 @@ def botErrors(m):
             if cid in user_error:
                 user_error.remove(cid)
                 str_user_error = [str(user) for user in user_error]
-                with open('bot_error.txt', 'w')as f:
+                with open(const.bot_path + 'bot_error.txt', 'w')as f:
                     f.write('\n'.join(str_user_error))
                 bot.send_message(cid, 'Отключил уведомление об ошибках')
             else:
@@ -186,7 +185,7 @@ def botMessage(m):
     global data
     cid = m.chat.id
     if m.text.upper() == 'PING':
-        bot.send_message(cid, "Я на месте и в полной боевой готовности!!!", reply_markup=keyboard)
+        bot.send_message(cid, "Я на месте и в полной боевой готовности!!!")
     if cid == bot_token.myChatId:
         if m.text.upper() == 'USERS KNOWN':
             users = ''
@@ -194,7 +193,8 @@ def botMessage(m):
                 users += str(user) + '\n'
             bot.send_message(cid, users)
         elif m.text.upper() == 'LISTENER':
-            listener_log = open('bot_listener.log', 'r').read()
+            with open(const.bot_path + 'bot_listener.log', 'r')as f:
+                listener_log = f.read()
             splited_listener_log = util.split_string(listener_log, 3000)
             if len(splited_listener_log) < 1:
                 bot.send_message(bot_token.myChatId, 'File is empty')
@@ -202,21 +202,22 @@ def botMessage(m):
                 for text in splited_listener_log:
                     bot.send_message(bot_token.myChatId, text)
         elif m.text.upper() == 'LISTENER CLEAR':
-            open('bot_listener.log', 'w').write('listener log')
+            with open(const.bot_path + 'bot_listener.log', 'w')as f:
+                f.write('listener log')
             bot.send_message(bot_token.myChatId, 'LISTENER CLEARED')
         elif m.text.upper() == 'LOG':
             try:
-                with open('bot.log', 'r')as f:
+                with open(const.bot_path + 'bot.log', 'r')as f:
                     log = f.read()
                     splited_log = util.split_string(log, 3000)
                 bot.send_message(bot_token.myChatId, splited_log)
             except FileNotFoundError:
-                with open('bot.log', 'w')as f:
+                with open(const.bot_path + 'bot.log', 'w')as f:
                     f.write('Bot log')
             except Exception:
                 writeLog('botMessage ' + str(sys.exc_info()))
         elif m.text.upper() == 'LOG CLEAR':
-            open('bot.log', 'w').write('bot log')
+            open(const.bot_path + 'bot.log', 'w').write('bot log')
             bot.send_message(bot_token.myChatId, 'LOG CLEARED')
         elif m.text.upper() == 'USERS ERROR':
             users = ''
@@ -224,7 +225,7 @@ def botMessage(m):
                 users += str(user) + '\n'
             bot.send_message(cid, users)
         elif m.text.upper() == 'GET DATAFILE':
-            with open('bot_data.txt', 'rb')as f:
+            with open(const.bot_path + 'bot_data.txt', 'rb')as f:
                 answer = f.read()
             bot.send_message(bot_token.myChatId, answer)
         elif m.text.upper() == 'GET DATA':
@@ -239,7 +240,7 @@ def botMessage(m):
 
 def writeLog(e):
     time_now = datetime.now().strftime("%d.%m.%Y %H:%M:%S")
-    with open('bot.log', 'a')as f:
+    with open(const.bot_path + 'bot.log', 'a')as f:
         f.write('\n' + time_now + ' ' + str(e))
 
 def readDB():
@@ -247,9 +248,9 @@ def readDB():
     while True:
         data = {}
         try:
-            stat = os.stat(r'c:\Users\Meteoaza\PycharmProjects\myBot\bot_data.txt')
-            file_time = datetime.fromtimestamp(stat[ST_MTIME])
-            with open(r'c:\Users\Meteoaza\PycharmProjects\myBot\bot_data.txt', 'r')as f:
+            st = os.stat(const.bot_path + 'bot_data.txt')
+            file_time = datetime.fromtimestamp(st[ST_MTIME])
+            with open(const.bot_path + 'bot_data.txt', 'r')as f:
                 data = f.read()
                 data = ast.literal_eval(data)
                 errors = data['error']
