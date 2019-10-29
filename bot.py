@@ -1,3 +1,5 @@
+from stat import ST_MTIME
+
 import bot_token
 import telebot
 import time
@@ -5,14 +7,15 @@ import ast
 import random
 import threading
 import sys
+import os
 from telebot import util
 from datetime import datetime
 import bot_constant as const
 
 known_users = []
 user_error = []
-global data
-data = {}
+# global data
+# data = {}
 not_understand = ['Что-то я тебя не пойму никак...', 'Ты серьезно???', 'Ты хорошо подумал???', 'Не шути так, братанчик']
 
 try:
@@ -107,7 +110,7 @@ def botStatus(m):
         status = data['status']
         text = m.text.split()
         sens = text[1].upper()
-        answer = 'Сообщение о статусе:\n\n'
+        answer = f'Сообщение о статусе:\n{file_time}\n\n'
         if sens == 'ALL':
             for s, v in status.items():
                 answer += v + '\n'
@@ -118,15 +121,11 @@ def botStatus(m):
                 l.append(s)
             bot.send_message(cid, f"Список доступных датчиков\n {'  '.join(l)}")
         else:
-            try:
-                answer += status[sens]
-                bot.send_message(cid, answer)
-            except KeyError:
-                writeLog('botStatus ' + str(sys.exc_info()))
-                bot.send_message(cid, "Введите правильное имя датчика ")
+            answer += status[sens]
+            bot.send_message(cid, answer)
     except Exception:
         writeLog('botStatus ' + str(sys.exc_info()))
-        bot.send_message(cid, "Проверьте введенную команду ")
+        bot.send_message(cid, "Что-то пошло не так... ")
 
 
 @bot.message_handler(commands=['value'])
@@ -137,7 +136,7 @@ def botValue(m):
         value = data['value']
         text = m.text.split()
         sens = text[1].upper()
-        answer = 'Сообщение со значениями:\n\n'
+        answer = f'Сообщение со значениями:\n{file_time}\n\n'
         if sens == 'ALL':
             for s, v in value.items():
                 answer += s + '  ' + v + '\n'
@@ -148,15 +147,11 @@ def botValue(m):
                 l.append(s)
             bot.send_message(cid, f"Список доступных датчиков\n {'  '.join(l)}")
         else:
-            try:
-                answer += value[sens]
-                bot.send_message(cid, answer)
-            except KeyError:
-                writeLog('botValue ' + str(sys.exc_info()))
-                bot.send_message(cid, "Введите правильное имя датчика ")
+            answer += value[sens]
+            bot.send_message(cid, answer)
     except Exception:
         writeLog('botValue ' + str(sys.exc_info()))
-        bot.send_message(cid, "Проверьте введенную команду ")
+        bot.send_message(cid, "Что-то пошло не так... ")
 
 
 @bot.message_handler(commands=['errors'])
@@ -182,7 +177,7 @@ def botErrors(m):
                 bot.send_message(cid, 'Отключил уведомление об ошибках')
             else:
                 bot.send_message(cid, 'Уведомление об ошибках уже отключено')
-    except Exception as e:
+    except Exception:
         writeLog('botErrors ' + str(sys.exc_info()))
 
 
@@ -215,8 +210,11 @@ def botMessage(m):
                     log = f.read()
                     splited_log = util.split_string(log, 3000)
                 bot.send_message(bot_token.myChatId, splited_log)
-            except Exception as e:
-                writeLog(e)
+            except FileNotFoundError:
+                with open('bot.log', 'w')as f:
+                    f.write('Bot log')
+            except Exception:
+                writeLog('botMessage ' + str(sys.exc_info()))
         elif m.text.upper() == 'LOG CLEAR':
             open('bot.log', 'w').write('bot log')
             bot.send_message(bot_token.myChatId, 'LOG CLEARED')
@@ -245,22 +243,27 @@ def writeLog(e):
         f.write('\n' + time_now + ' ' + str(e))
 
 def readDB():
-    global data
+    global data, file_time
     while True:
         data = {}
-        with open('bot_data.txt', 'r')as f:
-            data = f.read()
-            data = ast.literal_eval(data)
-            errors = data['error']
-            sensors = []
-            for sens, error in errors.items():
-                if error == 1 or error == 2:
-                    sensors.append(sens)
-            if len(sensors) >= 1:
-                if len(user_error) >= 1:
-                    for user in user_error:
-                        answer = 'Ошибка или сбой:\n' + '\n'.join(sensors)
-                        bot.send_message(user, answer)
+        try:
+            stat = os.stat(r'c:\Users\Meteoaza\PycharmProjects\myBot\bot_data.txt')
+            file_time = datetime.fromtimestamp(stat[ST_MTIME])
+            with open(r'c:\Users\Meteoaza\PycharmProjects\myBot\bot_data.txt', 'r')as f:
+                data = f.read()
+                data = ast.literal_eval(data)
+                errors = data['error']
+                sensors = []
+                for sens, error in errors.items():
+                    if error == 1 or error == 2:
+                        sensors.append(sens)
+                if len(sensors) >= 1:
+                    if len(user_error) >= 1:
+                        for user in user_error:
+                            answer = 'Ошибка или сбой:\n' + '\n'.join(sensors)
+                            bot.send_message(user, answer)
+        except Exception:
+            writeLog('readDB' + str(sys.exc_info()))
         time.sleep(5)
 
 
