@@ -1,3 +1,4 @@
+import speech_recognition as sr
 import bot_token
 import telebot
 import time
@@ -10,6 +11,7 @@ from stat import ST_MTIME
 from telebot import util
 from datetime import datetime
 import bot_constant as const
+import subprocess as sp
 
 known_users = []
 user_error = []
@@ -70,7 +72,7 @@ def command_start(m):
         time.sleep(3)
         command_help(m)  # show the new user the help page
     else:
-        bot.send_message(cid, f"{m.chat.first_name}, мы с тобой уже знакомы, нет смысла знакомиться повторно!")
+        bot.send_message(cid, f"{m.chat.first_name}, мы с тобой уже знакомы, нет смысла знакомиться повторно!", reply_markup=keyboard)
 
 
 @bot.message_handler(commands=['help'])
@@ -237,6 +239,47 @@ def botMessage(m):
             bot.send_message(bot_token.myChatId, util.split_string(answer, 3000))
     else:
         bot.send_message(cid, random.choice(not_understand))
+
+@bot.message_handler(content_types=['voice'])
+def getVoiceMessage(m):
+    cid = m.chat.id
+    src_filename = 'voice_src.ogg'
+    dst_filename = 'voice_dst.wav'
+    try:
+        os.remove(src_filename)
+        os.remove(dst_filename)
+    except FileNotFoundError:
+        pass
+    file_info = bot.get_file(m.voice.file_id)
+    downloaded_file = bot.download_file(file_info.file_path)
+    with open(src_filename, 'wb') as new_file:
+        new_file.write(downloaded_file)
+    process = sp.run(['ffmpeg', '-i', src_filename, dst_filename])
+    if process.returncode != 0:
+        raise Exception(bot.send_message(cid, 'Случилась какая-то жопа...'))
+    bot.send_message(cid, 'Конвертирую звуковой файл...')
+    r = sr.Recognizer()
+    audio_file = sr.AudioFile(dst_filename)
+    with audio_file as source:
+        audio = r.listen(source)
+    text = r.recognize_google(audio, language='ru')
+    if 'СТАТУС ДАТЧИКОВ' in text.upper():
+        status = data['status']
+        answer = f'Сообщение о статусе:\n{file_time}\n\n'
+        for s, v in status.items():
+            answer += v + '\n'
+        bot.send_message(cid, util.split_string(answer, 3000))
+    elif 'ДАННЫЕ ДАТЧИКОВ' in text.upper():
+        value = data['value']
+        answer = f'Сообщение с значениями:\n{file_time}\n\n'
+        for s, v in value.items():
+            answer += s + ': ' + v + '\n'
+        bot.send_message(cid, util.split_string(answer, 3000))
+    else:
+        bot.send_message(cid, text)
+
+def playMusic():
+    pass
 
 def writeLog(e):
     time_now = datetime.now().strftime("%d.%m.%Y %H:%M:%S")
