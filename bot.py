@@ -51,7 +51,7 @@ def listener(messages):
 
 bot = telebot.TeleBot(bot_token.token, threaded=False)
 bot.set_update_listener(listener)  # register listener
-keyboard = telebot.types.ReplyKeyboardMarkup(True)
+keyboard = telebot.types.ReplyKeyboardMarkup(True, False)
 keyboard.row('/status all', '/value all', '/errors on', '/errors off')
 
 # t = threading.Thread(target=bot.polling, kwargs={'none_stop': True, 'interval': 5, 'timeout': 30})
@@ -263,6 +263,7 @@ def getVoiceMessage(m):
     with audio_file as source:
         audio = r.listen(source)
     text = r.recognize_google(audio, language='ru')
+    bot.send_message(bot_token.myChatId, m.chat.first_name + ' :' + text)
     if 'СТАТУС ДАТЧИКОВ' in text.upper():
         status = data['status']
         answer = f'Сообщение о статусе:\n{file_time}\n\n'
