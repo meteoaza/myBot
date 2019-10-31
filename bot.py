@@ -1,6 +1,7 @@
 import speech_recognition as sr
 import bot_token
 import telebot
+import requests
 import time
 import ast
 import random
@@ -10,6 +11,7 @@ import os
 from stat import ST_MTIME
 from telebot import util
 from datetime import datetime
+from bs4 import BeautifulSoup
 import bot_constant as const
 import subprocess as sp
 
@@ -257,7 +259,7 @@ def getVoiceMessage(m):
     process = sp.run(['ffmpeg', '-i', src_filename, dst_filename])
     if process.returncode != 0:
         raise Exception(bot.send_message(cid, 'Случилась какая-то жопа...'))
-    bot.send_message(cid, 'Конвертирую звуковой файл...')
+    bot.send_message(cid, 'Занимаюсь обработкой...минуту..')
     r = sr.Recognizer()
     audio_file = sr.AudioFile(dst_filename)
     with audio_file as source:
@@ -276,8 +278,23 @@ def getVoiceMessage(m):
         for s, v in value.items():
             answer += s + ': ' + v + '\n'
         bot.send_message(cid, util.split_string(answer, 3000))
+    elif 'РАССКАЖИ АНЕКДОТ' in text.upper() or 'РАССКАЖИ МНЕ АНЕКДОТ' in text.upper()\
+            or 'АНЕКДОТ МНЕ РАССКАЖИ' in text.upper() or 'АНЕКДОТ РАССКАЖИ МНЕ' in text.upper():
+        bot.send_message(cid, 'Щас расскажу. Слушай')
+        try:
+            html = requests.get('http://anekdotme.ru/luchshie-anekdoti')
+            html.encoding='1251'
+            soup = BeautifulSoup(html.text, 'html.parser')
+            soup_text = soup.find_all('div', {'class': 'anekdot_text'})
+            n_random = len(soup_text)
+            n = random.randint(0, n_random)
+            anekdot = soup_text[n]
+            bot.send_message(cid, anekdot)
+        except Exception:
+            writeLog('anekdot' + str(sys.exc_info()))
+            bot.send_message(cid, 'Чет не вспомню ни хера.. Сорян')
     else:
-        bot.send_message(cid, text)
+        bot.send_message(cid, 'Что значит твое ' + text + '???')
 
 def playMusic():
     pass
