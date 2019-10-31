@@ -297,6 +297,9 @@ def getVoiceMessage(m):
         except Exception:
             writeLog('anekdot' + str(sys.exc_info()))
             bot.send_message(cid, 'Чет не вспомню ни хера.. Сорян')
+    elif 'ГРАФИК РАБОТЫ' in text.upper():
+        bot.send_message(cid, 'Встречай график работы! Смотри не проспи свою смену)))')
+        sendShedule(cid)
     else:
         bot.send_message(cid, 'Что значит твое ' + text + '???')
 
@@ -309,6 +312,12 @@ def textToVoice(cid, text, user):
 
 def playMusic():
     pass
+
+def sendShedule(cid):
+    file_name = 'graf.jpg'
+    with open(file_name, 'rb')as pic:
+        bot.send_photo(cid, pic)
+
 
 def writeLog(e):
     time_now = datetime.now().strftime("%d.%m.%Y %H:%M:%S")
