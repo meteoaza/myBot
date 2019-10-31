@@ -1,3 +1,5 @@
+from gtts import gTTS
+# from google_speech import Speech
 import speech_recognition as sr
 import bot_token
 import telebot
@@ -279,8 +281,8 @@ def getVoiceMessage(m):
             answer += s + ': ' + v + '\n'
         bot.send_message(cid, util.split_string(answer, 3000))
     elif 'РАССКАЖИ АНЕКДОТ' in text.upper() or 'РАССКАЖИ МНЕ АНЕКДОТ' in text.upper()\
-            or 'АНЕКДОТ МНЕ РАССКАЖИ' in text.upper() or 'АНЕКДОТ РАССКАЖИ МНЕ' in text.upper():
-        bot.send_message(cid, 'Щас расскажу. Слушай')
+            or 'АНЕКДОТ МНЕ РАССКАЖИ' in text.upper() or 'АНЕКДОТ РАССКАЖИ' in text.upper():
+        bot.send_message(cid, 'Щас расскажу. Дай вспомню, не торопи...')
         try:
             html = requests.get('http://anekdotme.ru/luchshie-anekdoti')
             html.encoding='1251'
@@ -288,13 +290,22 @@ def getVoiceMessage(m):
             soup_text = soup.find_all('div', {'class': 'anekdot_text'})
             n_random = len(soup_text)
             n = random.randint(0, n_random)
-            anekdot = soup_text[n]
-            bot.send_message(cid, anekdot)
+            a = soup_text[n]
+            anekdot = a.text.strip()
+            textToVoice(cid, anekdot, m.chat.first_name)
+            bot.send_message(cid, 'Открой файл, братанчик')
         except Exception:
             writeLog('anekdot' + str(sys.exc_info()))
             bot.send_message(cid, 'Чет не вспомню ни хера.. Сорян')
     else:
         bot.send_message(cid, 'Что значит твое ' + text + '???')
+
+def textToVoice(cid, text, user):
+    snd = gTTS(text=str(text), lang='ru')
+    file_name = 'Для тебя, {}.mp3'.format(user)
+    snd.save(file_name)
+    with open(file_name, 'rb')as sound:
+        bot.send_audio(cid, sound)
 
 def playMusic():
     pass
