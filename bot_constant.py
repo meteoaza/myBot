@@ -9,4 +9,4 @@ help = {
 
 }
 
-bot_path = r'C:\Users\Meteoaza\PycharmProjects\myBot\\'
+bot_path = r'C:\Users\Meteoaza\PycharmProjects\myBot\DATA\\'

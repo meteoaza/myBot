@@ -1,5 +1,6 @@
-from gtts import gTTS
-# from google_speech import Speech
+from shutil import copyfile
+import pyttsx3
+# from gtts import gTTS
 import speech_recognition as sr
 import bot_token
 import telebot
@@ -19,10 +20,12 @@ import subprocess as sp
 
 known_users = []
 user_error = []
-# global data
-# data = {}
 not_understand = ['Что-то я тебя не пойму никак...', 'Ты серьезно???', 'Ты хорошо подумал???', 'Не шути так, братанчик']
 
+if not os.path.exists('DATA'):
+    os.mkdir('DATA')
+if not os.path.exists('DATA/USERDATA'):
+    os.mkdir('DATA/USERDATA')
 try:
     with open(const.bot_path + 'bot_users.txt', 'r')as f:
         known_users = [int(user) for user in f.read().split('\n')]
@@ -34,7 +37,6 @@ try:
             user_error = []
 except FileNotFoundError:
     pass
-
 
 def listener(messages):
     """
@@ -58,7 +60,6 @@ bot.set_update_listener(listener)  # register listener
 keyboard = telebot.types.ReplyKeyboardMarkup(True, False)
 keyboard.row('/status all', '/value all', '/errors on', '/errors off')
 
-# t = threading.Thread(target=bot.polling, kwargs={'none_stop': True, 'interval': 5, 'timeout': 30})
 
 @bot.message_handler(commands=['start'])
 def command_start(m):
@@ -247,8 +248,8 @@ def botMessage(m):
 @bot.message_handler(content_types=['voice'])
 def getVoiceMessage(m):
     cid = m.chat.id
-    src_filename = 'voice_src.ogg'
-    dst_filename = 'voice_dst.wav'
+    src_filename = const.bot_path + 'voice_src.ogg'
+    dst_filename = const.bot_path + 'voice_dst.wav'
     try:
         os.remove(src_filename)
         os.remove(dst_filename)
@@ -262,12 +263,16 @@ def getVoiceMessage(m):
     if process.returncode != 0:
         raise Exception(bot.send_message(cid, 'Случилась какая-то жопа...'))
     bot.send_message(cid, 'Занимаюсь обработкой...минуту..')
+    name = m.chat.first_name
+    tm =  datetime.now().strftime('%d%m%H%M%S')
+    copyfile(dst_filename, const.bot_path + 'USERDATA/{}_{}.wav'.format(name, tm))
     r = sr.Recognizer()
     audio_file = sr.AudioFile(dst_filename)
     with audio_file as source:
         audio = r.listen(source)
     text = r.recognize_google(audio, language='ru')
-    bot.send_message(bot_token.myChatId, m.chat.first_name + ' :' + text)
+    if cid != bot_token.myChatId:
+        bot.send_message(bot_token.myChatId, m.chat.first_name + ' :' + text)
     if 'СТАТУС ДАТЧИКОВ' in text.upper():
         status = data['status']
         answer = f'Сообщение о статусе:\n{file_time}\n\n'
@@ -278,22 +283,28 @@ def getVoiceMessage(m):
         value = data['value']
         answer = f'Сообщение с значениями:\n{file_time}\n\n'
         for s, v in value.items():
+            v = v.replace('/', '-')
             answer += s + ': ' + v + '\n'
-        bot.send_message(cid, util.split_string(answer, 3000))
-    elif 'РАССКАЖИ АНЕКДОТ' in text.upper() or 'РАССКАЖИ МНЕ АНЕКДОТ' in text.upper()\
-            or 'АНЕКДОТ МНЕ РАССКАЖИ' in text.upper() or 'АНЕКДОТ РАССКАЖИ' in text.upper():
+        if 'ГОЛОСОМ' in text.upper():
+            textToVoice(cid, answer, m.chat.first_name)
+        else:
+            bot.send_message(cid, util.split_string(answer, 3000))
+    elif 'РАССКАЖИ АНЕКДОТ' in text.upper() or 'АНЕКДОТ РАССКАЖИ' in text.upper():
         bot.send_message(cid, 'Щас расскажу. Дай вспомню, не торопи...')
         try:
-            html = requests.get('http://anekdotme.ru/luchshie-anekdoti')
+            html = requests.get('http://anekdotme.ru/random')
             html.encoding='1251'
+            writeLog('anekdot : ' + str(html))
             soup = BeautifulSoup(html.text, 'html.parser')
             soup_text = soup.find_all('div', {'class': 'anekdot_text'})
             n_random = len(soup_text)
             n = random.randint(0, n_random)
             a = soup_text[n]
             anekdot = a.text.strip()
-            textToVoice(cid, anekdot, m.chat.first_name)
-            bot.send_message(cid, 'Открой файл, братанчик')
+            if 'ГОЛОСОМ' in text.upper():
+                textToVoice(cid, anekdot, m.chat.first_name)
+            else:
+                bot.send_message(cid, anekdot)
         except Exception:
             writeLog('anekdot' + str(sys.exc_info()))
             bot.send_message(cid, 'Чет не вспомню ни хера.. Сорян')
@@ -304,17 +315,27 @@ def getVoiceMessage(m):
         bot.send_message(cid, 'Что значит твое ' + text + '???')
 
 def textToVoice(cid, text, user):
+    # tts = pyttsx3.init()
+    # voices = tts.getProperty('voices')
+    # for voice in voices:
+    #     if voice.name == 'Aleksandr':
+    #         tts.setProperty('voice', voice.id)
+    #         tts.setProperty('rate', 200)
+    # snd = tts.say(text)
+    # tts.runAndWait()
     snd = gTTS(text=str(text), lang='ru')
-    file_name = 'Для тебя, {}.mp3'.format(user)
+    file_name = const.bot_path + 'anekdot.mp3'
     snd.save(file_name)
+    bot.send_message(cid, f'Почти готово, {user}. Высылаю файл...')
     with open(file_name, 'rb')as sound:
         bot.send_audio(cid, sound)
+    os.remove(file_name)
 
 def playMusic():
     pass
 
 def sendShedule(cid):
-    file_name = 'graf.jpg'
+    file_name = const.bot_path + 'graf.jpg'
     with open(file_name, 'rb')as pic:
         bot.send_photo(cid, pic)
 
