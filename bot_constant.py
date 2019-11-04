@@ -10,3 +10,4 @@ help = {
 }
 
 bot_path = r'C:\Users\Meteoaza\PycharmProjects\myBot\DATA\\'
+data_path = r'c:\Users\Meteoaza\PycharmProjects\maintenance\bot_data.txt'

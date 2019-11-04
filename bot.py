@@ -1,6 +1,6 @@
 from shutil import copyfile
 import pyttsx3
-# from gtts import gTTS
+from gtts import gTTS
 import speech_recognition as sr
 import bot_token
 import telebot
@@ -11,6 +11,7 @@ import random
 import threading
 import sys
 import os
+from pullATIS import getAtisFile
 from stat import ST_MTIME
 from telebot import util
 from datetime import datetime
@@ -242,6 +243,13 @@ def botMessage(m):
                 for k, v in V.items():
                     answer += f"'{k}': '{v}', "
             bot.send_message(bot_token.myChatId, util.split_string(answer, 3000))
+        elif m.text.upper() == 'GET IP':
+            html = requests.get('http://ifconfig.co')
+            html.encoding = '1251'
+            soup = BeautifulSoup(html.text, 'html.parser')
+            ip = soup.find('code', {'class': 'ip'})
+            bot.send_message(cid, ip.text)
+
     else:
         bot.send_message(cid, random.choice(not_understand))
 
@@ -302,7 +310,7 @@ def getVoiceMessage(m):
             a = soup_text[n]
             anekdot = a.text.strip()
             if 'ГОЛОСОМ' in text.upper():
-                textToVoice(cid, anekdot, m.chat.first_name)
+                textToVoice(cid, anekdot, m.chat.first_name, 'ru')
             else:
                 bot.send_message(cid, anekdot)
         except Exception:
@@ -311,20 +319,19 @@ def getVoiceMessage(m):
     elif 'ГРАФИК РАБОТЫ' in text.upper():
         bot.send_message(cid, 'Встречай график работы! Смотри не проспи свою смену)))')
         sendShedule(cid)
+    elif 'ГОЛОСОВОЕ ВЕЩАНИЕ' in text.upper():
+        atis_file_name = getAtisFile()
+        with open(atis_file_name, 'r')as f:
+            atis_file_text = f.read()
+        print(atis_file_name)
+        bot.send_message(cid, atis_file_text)
+        textToVoice(cid, atis_file_text, m.chat.first_name, 'en')
     else:
         bot.send_message(cid, 'Что значит твое ' + text + '???')
 
-def textToVoice(cid, text, user):
-    # tts = pyttsx3.init()
-    # voices = tts.getProperty('voices')
-    # for voice in voices:
-    #     if voice.name == 'Aleksandr':
-    #         tts.setProperty('voice', voice.id)
-    #         tts.setProperty('rate', 200)
-    # snd = tts.say(text)
-    # tts.runAndWait()
-    snd = gTTS(text=str(text), lang='ru')
-    file_name = const.bot_path + 'anekdot.mp3'
+def textToVoice(cid, text, user, lang):
+    snd = gTTS(text=str(text), lang=lang)
+    file_name = const.bot_path + 'voice.mp3'
     snd.save(file_name)
     bot.send_message(cid, f'Почти готово, {user}. Высылаю файл...')
     with open(file_name, 'rb')as sound:
@@ -350,9 +357,9 @@ def readDB():
     while True:
         data = {}
         try:
-            st = os.stat(const.bot_path + 'bot_data.txt')
+            st = os.stat(const.data_path)
             file_time = datetime.fromtimestamp(st[ST_MTIME])
-            with open(const.bot_path + 'bot_data.txt', 'r')as f:
+            with open(const.data_path, 'r')as f:
                 data = f.read()
                 data = ast.literal_eval(data)
                 errors = data['error']
