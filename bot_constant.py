@@ -4,10 +4,11 @@ help = {
     '/status'  :  'Вывод статуса прибора',
     '/value'   :  'Вывод значения прибора: \n\t"датчик" - для выбора датчика\n\tsensors - список датчиков\n\tall - для выбора всех датчиков',
     '/errors'  :  'on - включение уведомлений об ошибках, off - отключение уведомлений об ошибках',
+    '/atis'    :  'Текст телеграммы АТИС',
     'ping'    :  'Проверить доступность или разбудить бота',
-    'Доступны также голосовые команды': '\nСТАТУС ДАТЧИКОВ\nДАННЫЕ ДАТЧИКОВ\nРАССКАЖИ АНЕКДОТ\nГРАФИК РАБОТЫ\nГОЛОСОВОЕ ВЕЩАНИЕ\n'
+    'Доступны также голосовые команды': '\nРАССКАЖИ АНЕКДОТ\nГРАФИК РАБОТЫ\nГОЛОСОВОЕ ВЕЩАНИЕ\n'
 
 }
 
 bot_path = r'C:\Users\Meteoaza\PycharmProjects\myBot\DATA\\'
-data_path = r'c:\Users\Meteoaza\PycharmProjects\maintenance\bot_data.txt'
+data_path = r'd:\IRAM\MAINT\bot_data.json' # r'c:\Users\Meteoaza\PycharmProjects\maintenance\bot_data.json'

@@ -1,16 +1,15 @@
 from shutil import copyfile
-import pyttsx3
 from gtts import gTTS
 import speech_recognition as sr
 import bot_token
 import telebot
 import requests
 import time
-import ast
 import random
 import threading
 import sys
 import os
+import json
 from pullATIS import getAtisFile
 from stat import ST_MTIME
 from telebot import util
@@ -39,6 +38,7 @@ try:
 except FileNotFoundError:
     pass
 
+
 def listener(messages):
     """
     When new messages arrive TeleBot will call this function.
@@ -59,137 +59,134 @@ def listener(messages):
 bot = telebot.TeleBot(bot_token.token, threaded=False)
 bot.set_update_listener(listener)  # register listener
 keyboard = telebot.types.ReplyKeyboardMarkup(True, False)
-keyboard.row('/status all', '/value all', '/errors on', '/errors off')
+keyboard.row('/status all', '/value all', '/errors on', '/errors off', '/atis')
 
 
-@bot.message_handler(commands=['start'])
-def command_start(m):
-    cid = m.chat.id
-    if cid not in known_users:  # if user hasn't used the "/start" command yet:
-        known_users.append(cid)  # save user id, so you could brodcast messages to all users of this bot later
-        str_known_users = ([str(user) for user in known_users])
-        with  open(const.bot_path + 'bot_users.txt', 'w')as f:
-            f.write('\n'.join(str_known_users))
-        bot.send_message(cid, "Приветствую тебя, прямоходящий....")
-        time.sleep(2)
-        bot.send_message(cid, f"Я метео бот, а ты походу {m.chat.first_name}")
-        time.sleep(2)
-        bot.send_message(cid, "Я тебя запомнил...", reply_markup=keyboard)
-        time.sleep(3)
-        command_help(m)  # show the new user the help page
-    else:
-        bot.send_message(cid, f"{m.chat.first_name}, мы с тобой уже знакомы, нет смысла знакомиться повторно!", reply_markup=keyboard)
-
-
-@bot.message_handler(commands=['help'])
-def command_help(m):
-    cid = m.chat.id
-    help_text = "На данный момент доступны следующие команды: \n"
-    for key in const.help:  # generate help text out of the commands dictionary defined at the top
-        help_text += key + ": "
-        help_text += const.help[key].expandtabs() + "\n"
-    bot.send_message(cid, help_text)  # send the generated help page
-
-
-@bot.message_handler(commands=['sendmes'])
-def send_message_to(m):
-    try:
-        user = m.text.split()[1]
-        message = m.text.split()[2:]
-        answer = ''
-        for text in message:
-            answer += text + ' '
-        if user.upper() == 'ALL':
-            with open(const.bot_path + 'bot_users.txt', 'r')as f:
-                for user in f.read().split('\n'):
-                    bot.send_message(int(user), answer)
-        else:
-            bot.send_message(int(user), answer)
-    except Exception:
-        writeLog('send_message_to ' + str(sys.exc_info()))
-
-
-@bot.message_handler(commands=['status'])
-def botStatus(m):
+@bot.message_handler(commands=['start', 'help', 'status', 'value', 'errors', 'atis', 'sendmes'])
+def botCommander(m):
     global data
     cid = m.chat.id
-    try:
-        status = data['status']
-        text = m.text.split()
-        sens = text[1].upper()
-        answer = f'Сообщение о статусе:\n{file_time}\n\n'
-        if sens == 'ALL':
-            for s, v in status.items():
-                answer += v + '\n'
-            bot.send_message(cid, util.split_string(answer, 3000))
-        elif sens == 'SENSORS':
-            l = []
-            for s in status.keys():
-                l.append(s)
-            bot.send_message(cid, f"Список доступных датчиков\n {'  '.join(l)}")
+    if '/start' in m.text:
+        if cid not in known_users:  # if user hasn't used the "/start" command yet:
+            known_users.append(cid)  # save user id, so you could brodcast messages to all users of this bot later
+            str_known_users = ([str(user) for user in known_users])
+            with  open(const.bot_path + 'bot_users.txt', 'w')as f:
+                f.write('\n'.join(str_known_users))
+            bot.send_message(cid, "Приветствую тебя, прямоходящий....")
+            time.sleep(2)
+            bot.send_message(cid, f"Я метео бот, а ты походу {m.chat.first_name}")
+            time.sleep(2)
+            bot.send_message(cid, "Я тебя запомнил...", reply_markup=keyboard)
+            time.sleep(3)
+            bot.send_message(cid, 'Набери /help для вызова списка командд')
         else:
-            answer += status[sens]
-            bot.send_message(cid, answer)
-    except Exception:
-        writeLog('botStatus ' + str(sys.exc_info()))
-        bot.send_message(cid, "Что-то пошло не так... ")
+            bot.send_message(cid, f"{m.chat.first_name}, мы с тобой уже знакомы, нет смысла знакомиться повторно!",
+                             reply_markup=keyboard)
 
+    elif '/help' in m.text:
+        help_text = "На данный момент доступны следующие команды: \n"
+        for key in const.help:  # generate help text out of the commands dictionary defined at the top
+            help_text += key + ": "
+            help_text += const.help[key].expandtabs() + "\n"
+        bot.send_message(cid, help_text)  # send the generated help page
 
-@bot.message_handler(commands=['value'])
-def botValue(m):
-    global data
-    cid = m.chat.id
-    try:
-        value = data['value']
-        text = m.text.split()
-        sens = text[1].upper()
-        answer = f'Сообщение со значениями:\n{file_time}\n\n'
-        if sens == 'ALL':
-            for s, v in value.items():
-                answer += s + '  ' + v + '\n'
-            bot.send_message(cid, util.split_string(answer, 3000))
-        elif sens == 'SENSORS':
-            l = []
-            for s in value.keys():
-                l.append(s)
-            bot.send_message(cid, f"Список доступных датчиков\n {'  '.join(l)}")
-        else:
-            answer += value[sens]
-            bot.send_message(cid, answer)
-    except Exception:
-        writeLog('botValue ' + str(sys.exc_info()))
-        bot.send_message(cid, "Что-то пошло не так... ")
-
-
-@bot.message_handler(commands=['errors'])
-def botErrors(m):
-    cid = m.chat.id
-    try:
-        state = m.text.split()[1].upper()
-        if state == 'ON':
-            if cid not in user_error:
-                user_error.append(cid)
-                str_user_error = [str(user) for user in user_error]
-                with open(const.bot_path + 'bot_error.txt', 'w')as f:
-                    f.write('\n'.join(str_user_error))
-                bot.send_message(cid, 'Подключаю уведомление об ошибках')
-            elif cid in user_error:
-                bot.send_message(cid, 'Уведомление об ошибках уже подключено')
-        elif state == 'OFF':
-            if cid in user_error:
-                user_error.remove(cid)
-                str_user_error = [str(user) for user in user_error]
-                with open(const.bot_path + 'bot_error.txt', 'w')as f:
-                    f.write('\n'.join(str_user_error))
-                bot.send_message(cid, 'Отключил уведомление об ошибках')
+    elif '/status' in m.text:
+        try:
+            status = data['status']
+            text = m.text.split()
+            sens = text[1].upper()
+            answer = f'Сообщение о статусе:\n{file_time}\n\n'
+            if sens == 'ALL':
+                for s, v in status.items():
+                    answer += v + '\n'
+                bot.send_message(cid, util.split_string(answer, 3000))
+            elif sens == 'SENSORS':
+                l = []
+                for s in status.keys():
+                    l.append(s)
+                bot.send_message(cid, f"Список доступных датчиков\n {'  '.join(l)}")
             else:
-                bot.send_message(cid, 'Уведомление об ошибках уже отключено')
-    except Exception:
-        writeLog('botErrors ' + str(sys.exc_info()))
+                answer += status[sens]
+                bot.send_message(cid, answer)
+        except Exception:
+            writeLog('botStatus ' + str(sys.exc_info()))
+            bot.send_message(cid, "Что-то пошло не так... ")
+
+    elif '/value' in m.text:
+        try:
+            value = data['value']
+            text = m.text.split()
+            sens = text[1].upper()
+            answer = f'Сообщение со значениями:\n{file_time}\n\n'
+            if sens == 'ALL':
+                for s, v in value.items():
+                    answer += s + '  ' + v + '\n'
+                bot.send_message(cid, util.split_string(answer, 3000))
+            elif sens == 'SENSORS':
+                l = []
+                for s in value.keys():
+                    l.append(s)
+                bot.send_message(cid, f"Список доступных датчиков\n {'  '.join(l)}")
+            else:
+                answer += value[sens]
+                bot.send_message(cid, answer)
+        except Exception:
+            writeLog('botValue ' + str(sys.exc_info()))
+            bot.send_message(cid, "Что-то пошло не так... ")
+
+    elif '/errors' in m.text:
+        try:
+            state = m.text.split()[1].upper()
+            if state == 'ON':
+                if cid not in user_error:
+                    user_error.append(cid)
+                    str_user_error = [str(user) for user in user_error]
+                    with open(const.bot_path + 'bot_error.txt', 'w')as f:
+                        f.write('\n'.join(str_user_error))
+                    bot.send_message(cid, 'Подключаю уведомление об ошибках')
+                elif cid in user_error:
+                    bot.send_message(cid, 'Уведомление об ошибках уже подключено')
+            elif state == 'OFF':
+                if cid in user_error:
+                    user_error.remove(cid)
+                    str_user_error = [str(user) for user in user_error]
+                    with open(const.bot_path + 'bot_error.txt', 'w')as f:
+                        f.write('\n'.join(str_user_error))
+                    bot.send_message(cid, 'Отключил уведомление об ошибках')
+                else:
+                    bot.send_message(cid, 'Уведомление об ошибках уже отключено')
+        except Exception:
+            writeLog('botErrors ' + str(sys.exc_info()))
+
+    elif '/atis' in m.text:
+        try:
+            atis_file_name = getAtisFile()
+            with open(atis_file_name, 'r')as f:
+                atis_file_text = f.read()
+            bot.send_message(cid, atis_file_text)
+            textToVoice(cid, atis_file_text, m.chat.first_name, 'en')
+        except Exception:
+            writeLog('atis' + str(sys.exc_info()))
+
+    elif '/sendmes' in m.text:
+        try:
+            user = m.text.split()[1]
+            message = m.text.split()[2:]
+            answer = ''
+            for text in message:
+                answer += text + ' '
+            if user.upper() == 'ALL':
+                with open(const.bot_path + 'bot_users.txt', 'r')as f:
+                    for user in f.read().split('\n'):
+                        bot.send_message(int(user), answer)
+            else:
+                bot.send_message(int(user), answer)
+        except Exception:
+            writeLog('send_message_to ' + str(sys.exc_info()))
 
 
 @bot.message_handler(content_types=['text'])
-def botMessage(m):
+def getTextMessage(m):
     global data
     cid = m.chat.id
     if m.text.upper() == 'PING':
@@ -223,7 +220,7 @@ def botMessage(m):
                 with open(const.bot_path + 'bot.log', 'w')as f:
                     f.write('Bot log')
             except Exception:
-                writeLog('botMessage ' + str(sys.exc_info()))
+                writeLog('getTextMessage ' + str(sys.exc_info()))
         elif m.text.upper() == 'LOG CLEAR':
             open(const.bot_path + 'bot.log', 'w').write('bot log')
             bot.send_message(bot_token.myChatId, 'LOG CLEARED')
@@ -233,7 +230,7 @@ def botMessage(m):
                 users += str(user) + '\n'
             bot.send_message(cid, users)
         elif m.text.upper() == 'GET DATAFILE':
-            with open(const.bot_path + 'bot_data.txt', 'rb')as f:
+            with open(const.data_path, 'r')as f:
                 answer = f.read()
             bot.send_message(bot_token.myChatId, answer)
         elif m.text.upper() == 'GET DATA':
@@ -249,9 +246,9 @@ def botMessage(m):
             soup = BeautifulSoup(html.text, 'html.parser')
             ip = soup.find('code', {'class': 'ip'})
             bot.send_message(cid, ip.text)
-
     else:
         bot.send_message(cid, random.choice(not_understand))
+
 
 @bot.message_handler(content_types=['voice'])
 def getVoiceMessage(m):
@@ -272,8 +269,6 @@ def getVoiceMessage(m):
         raise Exception(bot.send_message(cid, 'Случилась какая-то жопа...'))
     bot.send_message(cid, 'Занимаюсь обработкой...минуту..')
     name = m.chat.first_name
-    tm =  datetime.now().strftime('%d%m%H%M%S')
-    copyfile(dst_filename, const.bot_path + 'USERDATA/{}_{}.wav'.format(name, tm))
     r = sr.Recognizer()
     audio_file = sr.AudioFile(dst_filename)
     with audio_file as source:
@@ -281,27 +276,13 @@ def getVoiceMessage(m):
     text = r.recognize_google(audio, language='ru')
     if cid != bot_token.myChatId:
         bot.send_message(bot_token.myChatId, m.chat.first_name + ' :' + text)
-    if 'СТАТУС ДАТЧИКОВ' in text.upper():
-        status = data['status']
-        answer = f'Сообщение о статусе:\n{file_time}\n\n'
-        for s, v in status.items():
-            answer += v + '\n'
-        bot.send_message(cid, util.split_string(answer, 3000))
-    elif 'ДАННЫЕ ДАТЧИКОВ' in text.upper():
-        value = data['value']
-        answer = f'Сообщение с значениями:\n{file_time}\n\n'
-        for s, v in value.items():
-            v = v.replace('/', '-')
-            answer += s + ': ' + v + '\n'
-        if 'ГОЛОСОМ' in text.upper():
-            textToVoice(cid, answer, m.chat.first_name)
-        else:
-            bot.send_message(cid, util.split_string(answer, 3000))
-    elif 'РАССКАЖИ АНЕКДОТ' in text.upper() or 'АНЕКДОТ РАССКАЖИ' in text.upper():
+        tm = datetime.now().strftime('%d%m%H%M%S')
+        copyfile(dst_filename, const.bot_path + 'USERDATA/{}_{}.wav'.format(name, tm))
+    if 'РАССКАЖИ АНЕКДОТ' in text.upper() or 'АНЕКДОТ РАССКАЖИ' in text.upper():
         bot.send_message(cid, 'Щас расскажу. Дай вспомню, не торопи...')
         try:
             html = requests.get('http://anekdotme.ru/random')
-            html.encoding='1251'
+            html.encoding = '1251'
             writeLog('anekdot : ' + str(html))
             soup = BeautifulSoup(html.text, 'html.parser')
             soup_text = soup.find_all('div', {'class': 'anekdot_text'})
@@ -323,11 +304,11 @@ def getVoiceMessage(m):
         atis_file_name = getAtisFile()
         with open(atis_file_name, 'r')as f:
             atis_file_text = f.read()
-        print(atis_file_name)
         bot.send_message(cid, atis_file_text)
         textToVoice(cid, atis_file_text, m.chat.first_name, 'en')
     else:
         bot.send_message(cid, 'Что значит твое ' + text + '???')
+
 
 def textToVoice(cid, text, user, lang):
     snd = gTTS(text=str(text), lang=lang)
@@ -338,8 +319,10 @@ def textToVoice(cid, text, user, lang):
         bot.send_audio(cid, sound)
     os.remove(file_name)
 
+
 def playMusic():
     pass
+
 
 def sendShedule(cid):
     file_name = const.bot_path + 'graf.jpg'
@@ -352,6 +335,7 @@ def writeLog(e):
     with open(const.bot_path + 'bot.log', 'a')as f:
         f.write('\n' + time_now + ' ' + str(e))
 
+
 def readDB():
     global data, file_time
     while True:
@@ -359,19 +343,18 @@ def readDB():
         try:
             st = os.stat(const.data_path)
             file_time = datetime.fromtimestamp(st[ST_MTIME])
-            with open(const.data_path, 'r')as f:
-                data = f.read()
-                data = ast.literal_eval(data)
-                errors = data['error']
-                sensors = []
-                for sens, error in errors.items():
-                    if error == 1 or error == 2:
-                        sensors.append(sens)
-                if len(sensors) >= 1:
-                    if len(user_error) >= 1:
-                        for user in user_error:
-                            answer = 'Ошибка или сбой:\n' + '\n'.join(sensors)
-                            bot.send_message(user, answer)
+            data = json.load(open(const.data_path))
+            status = data['status']
+            errors = data['error']
+            sensors = []
+            for sens, error in errors.items():
+                if error == 1 or error == 2:
+                    sensors.append(status[sens])
+            if len(sensors) >= 1:
+                if len(user_error) >= 1:
+                    for user in user_error:
+                        answer = '\n'.join(sensors)
+                        bot.send_message(user, answer)
         except Exception:
             writeLog('readDB' + str(sys.exc_info()))
         time.sleep(5)
